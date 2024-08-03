@@ -63,7 +63,7 @@ namespace Task4
                             //var zz = curves[i].GetEndPoint(1).Z;
                             if (i == 0 )
                             {
-                              var end = new XYZ(x, y, Lev.Elevation + 10) + (-1*( curves[i]as Line).Direction).Multiply(20);
+                              var end = new XYZ(x, y, Lev.Elevation + 10) + (-1*(XYZ.BasisZ)).Multiply(20);
                                 var L = Line.CreateBound(new XYZ(x, y,Lev.Elevation+10 ), end);
                                 LL.Add(L);
                                 
@@ -75,7 +75,7 @@ namespace Task4
                             }
                             else if (i == 2)
                             {
-                                var end = LL[1].GetEndPoint(1) + (-1 * (curves[i] as Line).Direction).Multiply(20);
+                                var end = LL[1].GetEndPoint(1) + (XYZ.BasisZ).Multiply(20);
                                 var L = Line.CreateBound(LL[1].GetEndPoint(1), end);
                                 LL.Add(L);
                             }
