@@ -81,25 +81,33 @@ namespace Task3
                         }
 
                     }
+
+
+
                     // 3- get closed loops from doors
-                    //  3-1 get location point // 3-2 get segment with same host diraction // 3-3 project updated location points to it 
+                    // 3-1 get location point
+                    // 3-2 get segment with same door hand directon
+                    // 3-3 project updated location points to it original boundry
+                    // 3-4 and the new loop to original boundry
 
-
+                    // loop on rooms with doors only
                     for (int i = 0; i < FloorsData.Count; i++)
                     {
                         var FD = FloorsData[i];
                         var Drs = FD.Doors;
                         var DoorsLines = new List<Line>();
+                        //lines from doors to be connected to room boundry
                         DoorsCurve(Drs, DoorsLines);
                         var R = FD.Room;
 
                         for (int j = 0; j < DoorsLines.Count; j++)
-                        {
-                            AddDoorLineToRoomSegment(FD, DoorsLines[j]);
+                        {   // 3-4 and the new loop to original boundry
+                            AddDoorLineToRoomBoundry(FD, DoorsLines[j]);
 
                         }
+                        // create floor 
                         FD.Create_Floor(Doc);
-                       
+
 
 
 
@@ -151,7 +159,7 @@ namespace Task3
 
         }
 
-        public static void AddDoorLineToRoomSegment(FloorData FD, Line DoorLine)
+        public static void AddDoorLineToRoomBoundry(FloorData FD, Line DoorLine)
         {
             var TB = FD.TotalBoundry; // Total boundary of the floor
             var R = FD.Room; // Room data
@@ -273,7 +281,7 @@ namespace Task3
 
             return results.get_Item(0).XYZPoint;
         }
-      
+
 
 
     }
