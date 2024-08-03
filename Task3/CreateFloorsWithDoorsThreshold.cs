@@ -20,32 +20,37 @@ namespace Task3
             Autodesk.Revit.DB.Document Doc = UIDoc.Document;
 
             try
-            { // Get the floor type
-                FilteredElementCollector collector = new FilteredElementCollector(Doc);
-                FloorType floorType = collector
-                    .OfClass(typeof(FloorType))
-                    .OfCategory(BuiltInCategory.OST_Floors)
-                    .FirstElement() as FloorType;
+            {
+                #region FLoor and level if needed 
+                //// Get the floor type
+                //FilteredElementCollector collector = new FilteredElementCollector(Doc);
+                //FloorType floorType = collector
+                //    .OfClass(typeof(FloorType))
+                //    .OfCategory(BuiltInCategory.OST_Floors)
+                //    .FirstElement() as FloorType;
 
-                // Get the floor type
+                //// Get level
 
-                Level Level = new FilteredElementCollector(Doc)
-                    .OfClass(typeof(Level))
-                    .OfCategory(BuiltInCategory.OST_Levels)
-                    .FirstElement() as Level;
+                //Level Level = new FilteredElementCollector(Doc)
+                //    .OfClass(typeof(Level))
+                //    .OfCategory(BuiltInCategory.OST_Levels)
+                //    .FirstElement() as Level; 
+                #endregion
 
-                // Get the doors
+                // Get doors
 
                 var Doors = new FilteredElementCollector(Doc)
                     .OfCategory(BuiltInCategory.OST_Doors).OfClass(typeof(FamilyInstance))
                     .WhereElementIsNotElementType().Cast<FamilyInstance>()
                     .ToList();
-
+                // Get rooms
                 var Rooms = new FilteredElementCollector(Doc)
                    .OfCategory(BuiltInCategory.OST_Rooms)
                    .WhereElementIsNotElementType()
                    .ToList();
 
+
+                // a class created to use
                 var FloorsData = new List<FloorData>();
 
                 // Create a new instance of SpatialElementBoundaryOptions 
@@ -62,6 +67,7 @@ namespace Task3
                         var FData = new FloorData();
                         FData.Room = R;
                         FData.RoomBoundary = Segments;
+                        FData.TotalBoundry = Segments.Select(s => s.GetCurve()).ToList();
                         // 2- get doors needed for each room
                         FData.Doors = Doors.Where(d => (d.ToRoom?.Id.IntegerValue == R.Id.IntegerValue) ||
                                                         (d.FromRoom?.Id.IntegerValue == R.Id.IntegerValue)).ToList();
@@ -70,7 +76,9 @@ namespace Task3
                             FloorsData.Add(FData);
                         }
                         else
-                        { Doc.Create.NewFloor(CreateCurveArrayFromSegments(FData.RoomBoundary), floorType, Level, false); }
+                        {
+                            FData.Create_Floor(Doc);
+                        }
 
                     }
                     // 3- get closed loops from doors
@@ -78,7 +86,8 @@ namespace Task3
 
 
                     for (int i = 0; i < FloorsData.Count; i++)
-                    { var FD = FloorsData[i];
+                    {
+                        var FD = FloorsData[i];
                         var Drs = FD.Doors;
                         var DoorsLines = new List<Line>();
                         DoorsCurve(Drs, DoorsLines);
@@ -86,33 +95,11 @@ namespace Task3
 
                         for (int j = 0; j < DoorsLines.Count; j++)
                         {
-
-                          
-                            //var Loop1 = CreateDoorsLoops(R, DoorsLines[j]).Select(e=> e as Curve) as IList<Curve> ;
-                            //var x = CurveLoop.Create(Loop1);
-                              IList<CurveLoop> Cloop = new List<CurveLoop>();
-                            //Cloop.Add(x);
-
-                            var Loop2 = FD.RoomBoundary.Select(e => e.GetCurve()) as IList<Curve>;
-                            var y = CurveLoop.Create(Loop2);
-                            Cloop.Add(y);
-                            Solid extrusion = GeometryCreationUtilities.CreateExtrusionGeometry(Cloop, XYZ.BasisZ,20);
-                            DirectShape directShape = DirectShape.CreateElement(Doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                            
-                            directShape.SetShape( new List<GeometryObject> { extrusion });
+                            AddDoorLineToRoomSegment(FD, DoorsLines[j]);
 
                         }
-                        //var DLs = new List<Line>();
-                        //if (Drs != null || Drs.Count != 0)
-                        //{
-                        //    //var Direction = FloorsData[i].DoorHostDirection;
-                        //    ////var Points = Drs.Select(d => (d.Location as LocationPoint).Point).ToList();
-                        //    //var segment = FloorsData[i].RoomBoundary.Where(s => Math.Abs((s.GetCurve() as Line).Direction.X) ==
-                        //    //                                                   Math.Abs(Direction.X)).First();
-                        //    DoorsCurve(Drs, DLs);
-
-                        //}
-
+                        FD.Create_Floor(Doc);
+                       
 
 
 
@@ -121,36 +108,6 @@ namespace Task3
                 }
 
 
-
-                //SpatialElementBoundarySubface.
-                Options GeoOp = commandData.Application.Application.Create.NewGeometryOptions();
-
-                GeoOp.View = Doc.ActiveView;
-                //using (Transaction trans = new Transaction(Doc, "Create floors from rooms"))
-                //{
-                //    trans.Start();
-                //    for (int i = 0; i < Doors.Count; i++)
-                //    {
-                //        var D = Doors[i] as FamilyInstance;
-
-                //        var Width = D.Symbol.LookupParameter("Width").AsDouble();
-                //        TaskDialog.Show("test", Width.ToString());
-                //            var LP = Doors[i].Location as LocationPoint;
-                //        var P = LP.Point;
-                //        Doc.Create.NewDetailCurve(Doc.ActiveView, Line.CreateBound(P, new XYZ(P.X, P.Y+(Width/2), P.Z)));
-                //        //var Lines = (Doors[i].get_Geometry(GeoOp).First() as GeometryInstance).GetSymbolGeometry().Where(e=> e is  Line).Select(e => e as Line).ToList();
-                //        //Doc.Create.NewDetailCurveArray(Doc.ActiveView, CreateFloorFromLines.CreateCurveArrayFromLines(Lines));
-
-                //        //var min = Doors[i].get_BoundingBox(Doc.ActiveView).Min;
-                //        //var max = Doors[i].get_BoundingBox(Doc.ActiveView).Max;
-                //        //Doc.Create.NewDetailCurve(Doc.ActiveView, Line.CreateBound(new XYZ(min.X, min.Y, 0), new XYZ(max.X, max.Y, 0)));
-                //    }
-                //    // Create the extrusion geometry
-                //    //Solid extrusion = GeometryCreationUtilities.CreateExtrusionGeometry(profile, extrusionDirection, extrusionDistance);
-
-
-                //    trans.Commit();
-                //}
 
 
                 return Result.Succeeded;
@@ -162,20 +119,22 @@ namespace Task3
                 return Result.Failed;
             }
         }
-        public static CurveArray CreateCurveArrayFromSegments(List<BoundarySegment> segments)
-        {
-            CurveArray curveArray = new CurveArray();
-            for (int i = 0; i < segments.Count; i++)
-            {
-                curveArray.Append(segments[i].GetCurve());
-            }
+        #region MyRegion
+        //public static CurveArray CreateCurveArrayFromSegments(List<BoundarySegment> segments)
+        //{
+        //    CurveArray curveArray = new CurveArray();
+        //    for (int i = 0; i < segments.Count; i++)
+        //    {
+        //        curveArray.Append(segments[i].GetCurve());
+        //    }
 
-            return curveArray;
-        }
+        //    return curveArray;
+        //} 
+        #endregion
 
-        public static void DoorsCurve(List<FamilyInstance> Drs,  List<Line> DoorsLines)
+        public static void DoorsCurve(List<FamilyInstance> Drs, List<Line> DoorsLines)
         {
-            
+
             for (int i = 0; i < Drs.Count; i++)
             {
                 var D = Drs[i];
@@ -188,47 +147,134 @@ namespace Task3
 
                 DoorsLines.Add(Line.CreateBound(endPoint, startPoint));
 
-
-
-
             }
-            
+
         }
-        public static List<Line> CreateDoorsLoops(Room R , Line L1)
+
+        public static void AddDoorLineToRoomSegment(FloorData FD, Line DoorLine)
         {
-            var DLs = new List<Line>();
-            DLs.Add(L1);
-            if (Math.Abs(L1.Direction.Y) == 1)
+            var TB = FD.TotalBoundry; // Total boundary of the floor
+            var R = FD.Room; // Room data
+            var RoomPoint = (R.Location as LocationPoint).Point; // Location point of the room
+            Line FlagLine; // Line used as a reference for intersection
+            var LinesToReplaceTheSegment = new List<Line>(); // List of new lines to replace the segment
+            Curve seg; // Segment of the boundary to be replaced
+            Line segLine; // Casted segment line
+
+            // Check if DoorLine is vertical
+            if (Math.Abs(DoorLine.Direction.Y) == 1)
             {
-                var X = (R.Location as LocationPoint).Point.X;
-                var L2 = Line.CreateBound(L1.GetEndPoint(1),
-                                        new XYZ(X, L1.GetEndPoint(1).Y, L1.GetEndPoint(1).Z));
-                var L3 = Line.CreateBound(L2.GetEndPoint(1),
-                                           new XYZ(L2.GetEndPoint(1).X, L1.GetEndPoint(0).Y, L1.GetEndPoint(0).Z));
-                var L4 = Line.CreateBound(L3.GetEndPoint(1), L1.GetEndPoint(0));
+                // Create a flag line based on the DoorLine's end point and room's X-coordinate
+                var X = RoomPoint.X;
+                FlagLine = Line.CreateBound(DoorLine.GetEndPoint(1),
+                                            new XYZ(X, DoorLine.GetEndPoint(1).Y, DoorLine.GetEndPoint(1).Z));
 
-                DLs.Add(L2);
-                DLs.Add(L3);
-                DLs.Add(L4);
+                // Find the segment that intersects with the FlagLine
+                seg = TB.Where(s => GetIntersection(s as Line, FlagLine) != null).ToList().First();
+                segLine = seg as Line;
 
+                // Gather points from DoorLine and the intersected segment
+                var Points = new List<XYZ>
+        {
+            DoorLine.GetEndPoint(0),
+            DoorLine.GetEndPoint(1),
+            segLine.GetEndPoint(0),
+            segLine.GetEndPoint(1)
+        };
+
+                // Order points by Y-coordinate and adjust if necessary
+                Points = Points.OrderBy(p => p.Y).ToList();
+                if (segLine.GetEndPoint(0).Y != Points[0].Y)
+                {
+                    Points.Reverse();
+                }
+
+                // Project points to the segment line
+                var second = segLine.Project(Points[1]).XYZPoint;
+                var fifth = segLine.Project(Points[2]).XYZPoint;
+                Points.Insert(1, second);
+                Points.Insert(4, fifth);
+
+                // Create new lines to replace the segment
+                for (int i = 0; i < Points.Count - 1; i++)
+                {
+                    var L = Line.CreateBound(Points[i], Points[i + 1]);
+                    LinesToReplaceTheSegment.Add(L);
+                }
             }
             else
             {
-                var Y = (R.Location as LocationPoint).Point.Y;
-                var L2 = Line.CreateBound(L1.GetEndPoint(1),
-                                          new XYZ(L1.GetEndPoint(1).X, Y, L1.GetEndPoint(1).Z));
-                var L3 = Line.CreateBound(L2.GetEndPoint(1),
-                                         new XYZ(L1.GetEndPoint(0).X, L2.GetEndPoint(1).Y, L2.GetEndPoint(1).Z));
-                var L4 = Line.CreateBound(L3.GetEndPoint(1), L1.GetEndPoint(0));
+                // DoorLine is horizontal, create a flag line based on the DoorLine's end point and room's Y-coordinate
+                var Y = RoomPoint.Y;
+                FlagLine = Line.CreateBound(DoorLine.GetEndPoint(1),
+                                            new XYZ(DoorLine.GetEndPoint(1).X, Y, DoorLine.GetEndPoint(1).Z));
 
-                DLs.Add(L2);
-                DLs.Add(L3);
-                DLs.Add(L4);
+                // Find the segment that intersects with the FlagLine
+                seg = TB.Where(s => GetIntersection(s as Line, FlagLine) != null).ToList().First();
+                segLine = seg as Line;
+
+                // Gather points from DoorLine and the intersected segment
+                var Points = new List<XYZ>
+        {
+            DoorLine.GetEndPoint(0),
+            DoorLine.GetEndPoint(1),
+            segLine.GetEndPoint(0),
+            segLine.GetEndPoint(1)
+        };
+
+                // Order points by X-coordinate and adjust if necessary
+                Points = Points.OrderBy(p => p.X).ToList();
+                if (segLine.GetEndPoint(0).X != Points[0].X)
+                {
+                    Points.Reverse();
+                }
+
+                // Project points to the segment line
+                var second = segLine.Project(Points[1]).XYZPoint;
+                var fifth = segLine.Project(Points[2]).XYZPoint;
+                Points.Insert(1, second);
+                Points.Insert(4, fifth);
+
+                // Create new lines to replace the segment
+                for (int i = 0; i < Points.Count - 1; i++)
+                {
+                    var L = Line.CreateBound(Points[i], Points[i + 1]);
+                    LinesToReplaceTheSegment.Add(L);
+                }
             }
 
-            return DLs;
+            // Replace the old segment in the total boundary with the new lines
+            for (int i = 0; i < TB.Count; i++)
+            {
+                if (TB[i].Id == segLine.Id)
+                {
+                    // Remove the old segment
+                    FD.TotalBoundry.Remove(segLine);
 
+                    // Insert the new lines at the same position
+                    for (int j = 0; j < LinesToReplaceTheSegment.Count; j++)
+                    {
+                        FD.TotalBoundry.Insert(i + j, LinesToReplaceTheSegment[j] as Curve);
+                    }
+                    break; // Break after replacing the segment to avoid unnecessary iterations
+                }
+            }
         }
+
+        public static XYZ GetIntersection(Line line1, Line line2)
+        {
+            IntersectionResultArray results;
+            SetComparisonResult result = line1.Intersect(line2, out results);
+
+            if (result != SetComparisonResult.Overlap || results == null || results.Size != 1)
+            {
+                return null; // No intersection or multiple intersections
+            }
+
+            return results.get_Item(0).XYZPoint;
+        }
+      
+
 
     }
 }
