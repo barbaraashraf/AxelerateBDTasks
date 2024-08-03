@@ -56,5 +56,11 @@
     <Compile Include="SectionCropBoundry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Task1\Task1.csproj">
+      <Project>{448c48ad-0cd3-4628-9177-cefbd6da264a}</Project>
+      <Name>Task1</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
